@@ -50,6 +50,7 @@ namespace OmniSharp.Extensions.JsonRpc
                 options.HandlerTypes.Select(x => x.Assembly)
                     .Distinct().Concat(options.HandlerAssemblies),
                 options.Handlers,
+                options.HandlerTypes,
                 options.NamedHandlers,
                 options.NamedServiceHandlers
             );
@@ -69,6 +70,7 @@ namespace OmniSharp.Extensions.JsonRpc
             IServiceCollection services,
             IEnumerable<Assembly> assemblies,
             IEnumerable<IJsonRpcHandler> handlers,
+            IEnumerable<Type> handlerTypes,
             IEnumerable<(string name, IJsonRpcHandler handler)> namedHandlers,
             IEnumerable<(string name, Func<IServiceProvider, IJsonRpcHandler> handlerFunc)> namedServiceHandlers)
         {
@@ -90,8 +92,18 @@ namespace OmniSharp.Extensions.JsonRpc
             services.AddJsonRpcMediatR(assemblies);
             services.AddSingleton<IJsonRpcServer>(this);
             services.AddSingleton<IRequestRouter<IHandlerDescriptor>, RequestRouter>();
-            services.AddSingleton<IReciever, Reciever>();
+            // services.AddSingleton<IReciever, Reciever>();
             services.AddSingleton<IResponseRouter, ResponseRouter>();
+
+            foreach (var item in handlers)
+            {
+                services.AddSingleton(item);
+            }
+
+            foreach (var item in handlerTypes)
+            {
+                services.AddSingleton(typeof(IJsonRpcHandler), item);
+            }
 
             var foundHandlers = services
                 .Where(x => typeof(IJsonRpcHandler).IsAssignableFrom(x.ServiceType) && x.ServiceType != typeof(IJsonRpcHandler))
@@ -114,7 +126,6 @@ namespace OmniSharp.Extensions.JsonRpc
 
             var serviceHandlers = _serviceProvider.GetServices<IJsonRpcHandler>().ToArray();
             _collection.Add(serviceHandlers);
-            _collection.Add(handlers.ToArray());
             foreach (var (name, handler) in namedHandlers)
             {
             _collection.Add(name, handler);

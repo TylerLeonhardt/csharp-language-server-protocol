@@ -75,7 +75,10 @@ namespace OmniSharp.Extensions.JsonRpc
             var cd = new CompositeDisposable();
             foreach (var handler in handlers)
             {
-                cd.Add(Add(GetMethodName(handler.GetType()), handler));
+                foreach (string method in GetMethodNames(handler.GetType()))
+                {
+                    cd.Add(Add(method, handler));
+                }
             }
             return cd;
         }
@@ -110,25 +113,14 @@ namespace OmniSharp.Extensions.JsonRpc
             typeof(IJsonRpcRequestHandler<,>),
         };
 
-        private string GetMethodName(Type type)
+        private string[] GetMethodNames(Type type)
         {
-            // Custom method
-            var attribute = type.GetTypeInfo().GetCustomAttribute<MethodAttribute>();
-            if (attribute is null)
-            {
-                attribute = type.GetTypeInfo()
-                    .ImplementedInterfaces
-                    .Select(t => t.GetTypeInfo().GetCustomAttribute<MethodAttribute>())
-                    .FirstOrDefault(x => x != null);
-            }
-
-            // TODO: Log unknown method name
-            if (attribute is null)
-            {
-
-            }
-
-            return attribute.Method;
+            return type.GetTypeInfo()
+                .ImplementedInterfaces
+                .Select(t => t.GetTypeInfo().GetCustomAttribute<MethodAttribute>())
+                .Where(x => x != null)
+                .Select(x => x.Method)
+                .ToArray();
         }
 
         private bool IsValidInterface(Type type)
